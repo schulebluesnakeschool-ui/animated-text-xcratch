@@ -1,3 +1,5 @@
+// Xcratch extension
+
 (function (Scratch) {
   'use strict';
 
