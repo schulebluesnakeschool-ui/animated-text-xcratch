@@ -43,12 +43,12 @@
       ctx.textAlign = 'center';
       ctx.fillText(text, width / 2, height / 2);
 
-      const md5 = Scratch.vm.runtime.renderer._storeImage(canvas);
+      // WICHTIG: Xcratch-kompatible Methode
+      const skinId = Scratch.vm.runtime.renderer.createBitmapSkin(canvas, 1);
 
       util.target.addCostume({
         name: 'Text',
-        md5ext: md5,
-        dataFormat: 'png',
+        skinId: skinId,
         rotationCenterX: width / 2,
         rotationCenterY: height / 2
       });
