@@ -24,7 +24,8 @@
       const text = args.TEXT;
       const size = Number(args.SIZE);
 
-      const canvas = document.createElement('canvas');
+      // Xcratch-kompatibler Canvas
+      const canvas = Scratch.vm.runtime.renderer.createCanvas();
       const ctx = canvas.getContext('2d');
 
       ctx.font = `${size}px Arial`;
@@ -43,7 +44,6 @@
       ctx.textAlign = 'center';
       ctx.fillText(text, width / 2, height / 2);
 
-      // WICHTIG: Xcratch-kompatible Methode
       const skinId = Scratch.vm.runtime.renderer.createBitmapSkin(canvas, 1);
 
       util.target.addCostume({
