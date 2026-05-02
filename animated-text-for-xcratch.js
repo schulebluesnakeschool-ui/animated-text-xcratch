@@ -1,250 +1,132 @@
-// Animated Text for Xcratch – Costume-based text effects extension
-// Basic multi-effect implementation for Scratch 3 / Xcratch
-
 (function (Scratch) {
   'use strict';
 
-  if (!Scratch.extensions) {
-    // Older environments not supported
-    return;
-  }
-
-  const vm = Scratch.vm;
-
-  class AnimatedTextForXcratch {
-    constructor(runtime) {
-      this.runtime = runtime;
-      this.textStates = new Map(); // spriteId -> state
-      this.defaultFont = '48px Arial';
+  class AnimatedTextXcratch {
+    constructor() {
+      this.states = {};
     }
 
     getInfo() {
       return {
-        id: 'animatedTextForXcratch',
+        id: 'animatedtextxcratch',
         name: 'Animated Text for Xcratch',
-        color1: '#ff7ac4',
-        color2: '#ffb3e0',
+        color1: '#ff66cc',
+        color2: '#ff99dd',
         blocks: [
           {
-            opcode: 'createTextCostume',
+            opcode: 'createText',
             blockType: Scratch.BlockType.COMMAND,
-            text: 'erzeuge Text [TEXT] mit Effekt [EFFECT]',
+            text: 'erzeuge Text [TEXT] Größe [SIZE] Farbe [COLOR] Hintergrund [BG]',
             arguments: {
-              TEXT: {
-                type: Scratch.ArgumentType.STRING,
-                defaultValue: 'Hallo Xcratch!'
-              },
+              TEXT: { type: Scratch.ArgumentType.STRING, default: 'Hallo!' },
+              SIZE: { type: Scratch.ArgumentType.NUMBER, default: 48 },
+              COLOR: { type: Scratch.ArgumentType.COLOR, default: '#ffffff' },
+              BG: { type: Scratch.ArgumentType.COLOR, default: '#000000' }
+            }
+          },
+          {
+            opcode: 'setEffect',
+            blockType: Scratch.BlockType.COMMAND,
+            text: 'setze Texteffekt [EFFECT]',
+            arguments: {
               EFFECT: {
                 type: Scratch.ArgumentType.STRING,
                 menu: 'effects',
-                defaultValue: 'Regenbogen'
+                default: 'Regenbogen'
               }
             }
           },
           {
-            opcode: 'setTextStyle',
+            opcode: 'animate',
             blockType: Scratch.BlockType.COMMAND,
-            text: 'setze Textgröße [SIZE] Farbe [COLOR] Hintergrund [BGCOLOR]',
-            arguments: {
-              SIZE: {
-                type: Scratch.ArgumentType.NUMBER,
-                defaultValue: 48
-              },
-              COLOR: {
-                type: Scratch.ArgumentType.COLOR,
-                defaultValue: '#ffffff'
-              },
-              BGCOLOR: {
-                type: Scratch.ArgumentType.COLOR,
-                defaultValue: '#000000'
-              }
-            }
-          },
-          {
-            opcode: 'updateAnimation',
-            blockType: Scratch.BlockType.COMMAND,
-            text: 'aktualisiere Textanimation',
-            arguments: {}
-          },
-          {
-            opcode: 'setAnimationSpeed',
-            blockType: Scratch.BlockType.COMMAND,
-            text: 'setze Animationsgeschwindigkeit [SPEED]',
-            arguments: {
-              SPEED: {
-                type: Scratch.ArgumentType.NUMBER,
-                defaultValue: 1
-              }
-            }
+            text: 'aktualisiere Animation'
           }
         ],
         menus: {
           effects: {
-            acceptReporters: true,
-            items: [
-              'Regenbogen',
-              'Wackeln',
-              'Tippen',
-              'Pulsieren',
-              'Fade',
-              'Bounce',
-              'Drehen',
-              'Welle',
-              'Schütteln'
-            ]
+            items: ['Regenbogen', 'Wackeln', 'Pulsieren', 'Drehen', 'Schütteln']
           }
         }
       };
     }
 
-    _getSpriteState(target) {
-      const id = target.id;
-      if (!this.textStates.has(id)) {
-        this.textStates.set(id, {
-          text: 'Hallo Xcratch!',
-          effect: 'Regenbogen',
-          size: 48,
-          color: '#ffffff',
-          bgColor: '#000000',
-          speed: 1,
-          phase: 0,
-          lastUpdate: Date.now()
-        });
-      }
-      return this.textStates.get(id);
-    }
+    createText(args, util) {
+      const target = util.target;
+      const text = args.TEXT;
+      const size = Number(args.SIZE);
+      const color = args.COLOR;
+      const bg = args.BG;
 
-    _createCanvas(text, size, color, bgColor) {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
 
-      const font = `${size}px Arial`;
-      ctx.font = font;
-      const metrics = ctx.measureText(text);
-      const width = Math.ceil(metrics.width + size * 0.5);
-      const height = Math.ceil(size * 1.6);
+      ctx.font = `${size}px Arial`;
+      const width = ctx.measureText(text).width + 20;
+      const height = size * 1.6;
 
       canvas.width = width;
       canvas.height = height;
 
-      ctx.font = font;
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'center';
-
-      // Hintergrund
-      ctx.fillStyle = bgColor;
+      ctx.fillStyle = bg;
       ctx.fillRect(0, 0, width, height);
 
-      // Text
       ctx.fillStyle = color;
+      ctx.font = `${size}px Arial`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
       ctx.fillText(text, width / 2, height / 2);
 
-      return canvas;
+      const md5 = Scratch.vm.runtime.renderer._storeImage(canvas);
+
+      target.addCostume({
+        name: 'AnimatedText',
+        md5ext: md5,
+        dataFormat: 'png',
+        rotationCenterX: width / 2,
+        rotationCenterY: height / 2
+      });
+
+      target.setCostume(target.getCostumes().length - 1);
+
+      this.states[target.id] = {
+        effect: 'Regenbogen',
+        phase: 0
+      };
     }
 
-    _applyEffectToTarget(target, state) {
-      const now = Date.now();
-      const dt = (now - state.lastUpdate) / 1000;
-      state.lastUpdate = now;
-      state.phase += dt * state.speed * 5;
+    setEffect(args, util) {
+      const target = util.target;
+      if (!this.states[target.id]) return;
+      this.states[target.id].effect = args.EFFECT;
+    }
 
-      const sprite = target;
-      const phase = state.phase;
+    animate(args, util) {
+      const target = util.target;
+      const state = this.states[target.id];
+      if (!state) return;
+
+      state.phase += 0.2;
 
       switch (state.effect) {
-        case 'Wackeln':
-          sprite.setDirection(90 + Math.sin(phase * 10) * 10);
-          break;
         case 'Regenbogen':
-          // Farbe über Effekt simulieren: wir ändern die Farbe des Sprites
-          sprite.effects.color = (sprite.effects.color + state.speed * 5) % 200;
+          target.effects.color = (target.effects.color + 5) % 200;
           break;
-        case 'Tippen':
-          // Textlänge progressiv anzeigen: hier nur einfache Kostüm-Wechsel-Logik
-          // (für echte Typ-Animation müsste man mehrere Kostüme erzeugen)
+        case 'Wackeln':
+          target.setDirection(90 + Math.sin(state.phase * 10) * 10);
           break;
         case 'Pulsieren':
-          sprite.size = 100 + Math.sin(phase * 5) * 20;
-          break;
-        case 'Fade':
-          sprite.effects.ghost = (Math.sin(phase * 2) * 50) + 50;
-          break;
-        case 'Bounce':
-          sprite.y = sprite.y + Math.sin(phase * 8) * 2;
+          target.size = 100 + Math.sin(state.phase * 5) * 20;
           break;
         case 'Drehen':
-          sprite.setDirection(90 + phase * 50);
-          break;
-        case 'Welle':
-          sprite.y = sprite.y + Math.sin(phase * 4) * 3;
-          sprite.x = sprite.x + Math.cos(phase * 4) * 3;
+          target.setDirection(90 + state.phase * 20);
           break;
         case 'Schütteln':
-          sprite.x = sprite.x + (Math.random() - 0.5) * 4;
-          sprite.y = sprite.y + (Math.random() - 0.5) * 4;
+          target.x += (Math.random() - 0.5) * 6;
+          target.y += (Math.random() - 0.5) * 6;
           break;
       }
     }
-
-    createTextCostume(args, util) {
-      const target = util.target;
-      const state = this._getSpriteState(target);
-
-      const text = String(args.TEXT || '').trim() || ' ';
-      const effect = String(args.EFFECT || 'Regenbogen');
-
-      state.text = text;
-      state.effect = effect;
-
-      const canvas = this._createCanvas(
-        state.text,
-        state.size,
-        state.color,
-        state.bgColor
-      );
-
-      const costumeName = `AnimatedText: ${state.text}`;
-      const md5ext = vm.runtime.renderer._storeImage(canvas);
-
-      const costume = {
-        name: costumeName,
-        md5ext: md5ext,
-        dataFormat: 'png',
-        rotationCenterX: canvas.width / 2,
-        rotationCenterY: canvas.height / 2
-      };
-
-      target.addCostume(costume);
-      target.setCostume(target.getCostumes().length - 1);
-    }
-
-    setTextStyle(args, util) {
-      const target = util.target;
-      const state = this._getSpriteState(target);
-
-      const size = Number(args.SIZE) || 48;
-      const color = args.COLOR || '#ffffff';
-      const bgColor = args.BGCOLOR || '#000000';
-
-      state.size = size;
-      state.color = color;
-      state.bgColor = bgColor;
-    }
-
-    setAnimationSpeed(args, util) {
-      const target = util.target;
-      const state = this._getSpriteState(target);
-
-      const speed = Number(args.SPEED) || 1;
-      state.speed = speed;
-    }
-
-    updateAnimation(args, util) {
-      const target = util.target;
-      const state = this._getSpriteState(target);
-      this._applyEffectToTarget(target, state);
-    }
   }
 
-  Scratch.extensions.register(new AnimatedTextForXcratch(Scratch.vm.runtime));
+  Scratch.extensions.register(new AnimatedTextXcratch());
 })(Scratch);
